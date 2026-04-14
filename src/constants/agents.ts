@@ -1,0 +1,106 @@
+import { Agent } from '../types';
+
+export const DEFAULT_AGENTS: Omit<Agent, 'status' | 'lastResponseAt' | 'cooldownUntil' | 'confidenceScore'>[] = [
+  {
+    id: 'agent-red',
+    name: 'Red',
+    color: 'Red',
+    hexColor: '#E53935',
+    role: 'alpha',
+    roleDescription: 'Alpha / Command — final decisions, task routing, conflict resolution',
+    behaviorStyle: 'concise',
+    specializationTags: ['planning', 'organization'],
+    personalityType: 'Commander',
+    isDefault: true,
+    priority: 95,
+    memoryId: 'mem-agent-red',
+  },
+  {
+    id: 'agent-blue',
+    name: 'Blue',
+    color: 'Blue',
+    hexColor: '#1E88E5',
+    role: 'logic',
+    roleDescription: 'Logic / Analysis — problem decomposition, structured reasoning, technical analysis',
+    behaviorStyle: 'analytical',
+    specializationTags: ['research', 'planning'],
+    personalityType: 'Analyst',
+    isDefault: true,
+    priority: 75,
+    memoryId: 'mem-agent-blue',
+  },
+  {
+    id: 'agent-green',
+    name: 'Green',
+    color: 'Green',
+    hexColor: '#43A047',
+    role: 'builder',
+    roleDescription: 'Builder / Execution — producing actionable outputs, writing code, constructing workflows',
+    behaviorStyle: 'technical',
+    specializationTags: ['coding', 'organization'],
+    personalityType: 'Operator',
+    isDefault: true,
+    priority: 70,
+    memoryId: 'mem-agent-green',
+  },
+  {
+    id: 'agent-yellow',
+    name: 'Yellow',
+    color: 'Yellow',
+    hexColor: '#FDD835',
+    role: 'creative',
+    roleDescription: 'Creative / Expansion — idea generation, concept improvement, alternative approaches',
+    behaviorStyle: 'creative',
+    specializationTags: ['research', 'planning'],
+    personalityType: 'Visionary',
+    isDefault: true,
+    priority: 65,
+    memoryId: 'mem-agent-yellow',
+  },
+  {
+    id: 'agent-purple',
+    name: 'Purple',
+    color: 'Purple',
+    hexColor: '#8E24AA',
+    role: 'memory',
+    roleDescription: 'Memory / Oversight — tracking history, maintaining consistency, preventing contradictions',
+    behaviorStyle: 'concise',
+    specializationTags: ['research', 'summarization'],
+    personalityType: 'Observer',
+    isDefault: true,
+    priority: 60,
+    memoryId: 'mem-agent-purple',
+  },
+];
+
+export const AGENT_HEX_COLORS: Record<string, string> = {
+  Red: '#E53935',
+  Blue: '#1E88E5',
+  Green: '#43A047',
+  Yellow: '#FDD835',
+  Purple: '#8E24AA',
+  Orange: '#F4511E',
+  Teal: '#00ACC1',
+  Pink: '#D81B60',
+  Indigo: '#3949AB',
+  Amber: '#FFB300',
+};
+
+export const AVAILABLE_COLORS = Object.keys(AGENT_HEX_COLORS);
+
+export const BEHAVIOR_STYLE_LABELS: Record<string, string> = {
+  concise: 'Concise',
+  verbose: 'Verbose',
+  analytical: 'Analytical',
+  creative: 'Creative',
+  technical: 'Technical',
+};
+
+export const SPECIALIZATION_TAG_LABELS: Record<string, string> = {
+  coding: 'Coding',
+  research: 'Research',
+  organization: 'Organization',
+  summarization: 'Summarization',
+  planning: 'Planning',
+  critique: 'Critique',
+};
