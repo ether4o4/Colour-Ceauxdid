@@ -1,8 +1,9 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import {
   View, Text, TextInput, TouchableOpacity, FlatList,
-  StyleSheet, KeyboardAvoidingView, Platform, SafeAreaView, StatusBar,
+  StyleSheet, KeyboardAvoidingView, Platform, StatusBar,
 } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { SwarmMessage, SwarmAgent } from '../types';
 import { COLORS } from '../utils/theme';
 import { getMessages, saveMessage, getCustomAgents } from '../store';

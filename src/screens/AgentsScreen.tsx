@@ -1,8 +1,9 @@
 import React, { useState, useEffect } from 'react';
 import {
   View, Text, TouchableOpacity, FlatList, StyleSheet,
-  SafeAreaView, StatusBar, Modal, TextInput, ScrollView, Alert,
+  StatusBar, Modal, TextInput, ScrollView, Alert,
 } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { SwarmAgent } from '../types';
 import { COLORS } from '../utils/theme';
 import { DEFAULT_AGENTS, CUSTOM_AGENT_COLORS } from '../agents/config';

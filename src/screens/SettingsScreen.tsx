@@ -1,8 +1,9 @@
 import React, { useState, useEffect } from 'react';
 import {
-  View, Text, TouchableOpacity, StyleSheet, SafeAreaView,
+  View, Text, TouchableOpacity, StyleSheet,
   StatusBar, ScrollView, TextInput, Alert, Switch,
 } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { COLORS } from '../utils/theme';
 import { getSettings, updateSettings, clearMessages, getWorkflows, saveWorkflow, deleteWorkflow } from '../store';
 import { DEFAULT_AGENTS } from '../agents/config';

@@ -1,8 +1,9 @@
 import React, { useState, useEffect } from 'react';
 import {
   View, Text, TextInput, TouchableOpacity, FlatList,
-  StyleSheet, SafeAreaView, StatusBar, Modal, ScrollView,
+  StyleSheet, StatusBar, Modal, ScrollView,
 } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { Task } from '../types';
 import { COLORS } from '../utils/theme';
 import { getTasks, saveTask, deleteTask } from '../store';
