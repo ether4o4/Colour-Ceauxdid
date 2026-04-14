@@ -388,7 +388,11 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
   }, [state.chatState, state.agentMemories, state.agents, state.isLoading]);
 
   // ─── Orchestration: process user message and schedule agent responses ─────
-
+  //
+  // Empty dependency array is intentional: the function exclusively reads state
+  // through `stateRef.current`, which is updated on every render without
+  // triggering re-creation of this callback. This avoids stale closures while
+  // keeping the function identity stable for consumers like `sendUserMessage`.
   const scheduleAgentResponses = useCallback(
     async (userMessage: Message) => {
       const currentState = stateRef.current;
