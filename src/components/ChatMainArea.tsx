@@ -9,7 +9,7 @@ import { SwarmMessage, SwarmAgent, Project, SavedChat } from '../types';
 import { DEFAULT_AGENTS } from '../agents/config';
 import { getMessages, saveMessage, getCustomAgents, saveChatSession } from '../store';
 import { streamAgentResponse } from '../utils/api';
-import MessageBubble, { TypingBubble } from './MessageBubble';
+import MessageBubble from './MessageBubble';
 import AgentStrip from './AgentStrip';
 import { v4 as uuidv4 } from 'uuid';
 
@@ -106,7 +106,6 @@ export default function ChatMainArea({ project, agentId, savedChat, mode }: Chat
     setTypingAgents(prev => { const s = new Set(prev); s.delete(agent.id); return s; });
 
     const currentMsgs = await getMessages();
-
     let fullResponse = '';
 
     await streamAgentResponse(
@@ -115,16 +114,12 @@ export default function ChatMainArea({ project, agentId, savedChat, mode }: Chat
       currentMsgs,
       (chunk: string) => {
         fullResponse += chunk;
-        setMessages(prev => {
-          const updated = [...prev];
-          const lastMsg = updated[updated.length - 1];
-          if (lastMsg && lastMsg.id === msgId) {
-            lastMsg.text = fullResponse;
-          }
-          return updated;
-        });
+        setMessages(prev =>
+          prev.map(m => m.id === msgId ? { ...m, text: fullResponse } : m)
+        );
         scrollToBottom();
       },
+      () => {}, // onDone
       (error: string) => {
         Alert.alert('Error', error);
       }
@@ -184,7 +179,7 @@ export default function ChatMainArea({ project, agentId, savedChat, mode }: Chat
       {/* Agent Selector (Project mode) */}
       {mode === 'project' && projectAgents.length > 0 && (
         <View style={styles.agentSelectorContainer}>
-          <AgentStrip agents={projectAgents} />
+          <AgentStrip agents={projectAgents} typingAgents={typingAgents} />
         </View>
       )}
 
@@ -193,13 +188,12 @@ export default function ChatMainArea({ project, agentId, savedChat, mode }: Chat
         ref={flatListRef}
         data={messages}
         keyExtractor={msg => msg.id}
-        renderItem={({ item }) =>
-          typingAgents.has(item.senderId) ? (
-            <TypingBubble agent={item.senderName} color={item.senderColor} />
-          ) : (
-            <MessageBubble message={item} />
-          )
-        }
+        renderItem={({ item }) => (
+          <MessageBubble
+            message={item}
+            isStreaming={typingAgents.has(item.senderId)}
+          />
+        )}
         contentContainerStyle={styles.messageList}
         onContentSizeChange={() => scrollToBottom()}
       />

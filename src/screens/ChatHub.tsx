@@ -61,14 +61,14 @@ export default function ChatHub() {
   function handleSelectAgent(agentId: string) {
     setActiveAgentId(agentId);
     setActiveSection('agent');
-    setActiveProjectId(undefined);
+    setActiveProjectIdState(undefined);
     setActiveSavedChatId(undefined);
   }
 
   function handleSelectSavedChat(chatId: string) {
     setActiveSavedChatId(chatId);
     setActiveSection('saved');
-    setActiveProjectId(undefined);
+    setActiveProjectIdState(undefined);
     setActiveAgentId(undefined);
   }
 
