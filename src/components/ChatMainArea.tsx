@@ -6,7 +6,7 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { COLORS } from '../utils/theme';
 import { SwarmMessage, SwarmAgent, Project, SavedChat } from '../types';
-import { DEFAULT_AGENTS } from '../agents/config';
+import { DEFAULT_AGENTS, routeMessage } from '../agents/config';
 import { getMessages, saveMessage, getCustomAgents, saveChatSession } from '../store';
 import { streamAgentResponse } from '../utils/api';
 import MessageBubble from './MessageBubble';
@@ -18,9 +18,10 @@ interface ChatMainAreaProps {
   agentId?: string;
   savedChat?: SavedChat;
   mode: 'project' | 'agent' | 'saved';
+  onDataChange?: () => void;
 }
 
-export default function ChatMainArea({ project, agentId, savedChat, mode }: ChatMainAreaProps) {
+export default function ChatMainArea({ project, agentId, savedChat, mode, onDataChange }: ChatMainAreaProps) {
   const [messages, setMessages] = useState<SwarmMessage[]>([]);
   const [input, setInput] = useState('');
   const [typingAgents, setTypingAgents] = useState<Set<string>>(new Set());
@@ -74,14 +75,19 @@ export default function ChatMainArea({ project, agentId, savedChat, mode }: Chat
         await streamAgentMessage(agent, text);
       }
     }
-    // If project mode, route to multiple agents
+    // If project mode, use smart routing filtered to project agents
     else if (mode === 'project' && project) {
+      const routedIds = routeMessage(text, customAgents);
       const agents = [...DEFAULT_AGENTS, ...customAgents].filter(a =>
-        project.agents.includes(a.id)
+        project.agents.includes(a.id) && routedIds.includes(a.id)
       );
-      for (let i = 0; i < agents.length; i++) {
+      // Fallback: if routing returns no project agents, pick first two in project
+      const toRespond = agents.length > 0
+        ? agents
+        : [...DEFAULT_AGENTS, ...customAgents].filter(a => project.agents.includes(a.id)).slice(0, 2);
+      for (let i = 0; i < toRespond.length; i++) {
         await new Promise(r => setTimeout(r, i * 800));
-        await streamAgentMessage(agents[i], text);
+        await streamAgentMessage(toRespond[i], text);
       }
     }
   }
