@@ -52,3 +52,31 @@ export interface AgentMemoryEntry {
   key: string;
   value: string;
 }
+
+export interface Project {
+  id: string;
+  name: string;
+  description?: string;
+  agents: string[]; // agent IDs
+  createdAt: number;
+  updatedAt: number;
+  isActive: boolean;
+}
+
+export interface SavedChat {
+  id: string;
+  name: string;
+  projectId?: string;
+  agentId?: string;
+  messages: SwarmMessage[];
+  createdAt: number;
+  type: 'saved' | 'template';
+}
+
+export interface ExternalAsset {
+  id: string;
+  type: 'github' | 'gitlab' | 'gdrive' | 'onedrive';
+  token?: string;
+  connected: boolean;
+  connectedAt?: number;
+}

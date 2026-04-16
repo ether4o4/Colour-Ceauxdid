@@ -1,5 +1,5 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { SwarmAgent, SwarmMessage, Task, Workflow, AgentMemoryEntry } from '../types';
+import { SwarmAgent, SwarmMessage, Task, Workflow, AgentMemoryEntry, Project, SavedChat, ExternalAsset } from '../types';
 import { DEFAULT_AGENTS } from '../agents/config';
 
 const KEYS = {
@@ -10,6 +10,10 @@ const KEYS = {
   AGENT_MEMORY: 'cc_agent_memory',
   COMMAND_MEMORY: 'cc_command_memory',
   SETTINGS: 'cc_settings',
+  PROJECTS: 'cc_projects',
+  SAVED_CHATS: 'cc_saved_chats',
+  EXTERNAL_ASSETS: 'cc_external_assets',
+  ACTIVE_PROJECT: 'cc_active_project',
 };
 
 // Messages
@@ -120,4 +124,70 @@ export async function getSettings(): Promise<Record<string, any>> {
 export async function updateSettings(updates: Record<string, any>): Promise<void> {
   const settings = await getSettings();
   await AsyncStorage.setItem(KEYS.SETTINGS, JSON.stringify({ ...settings, ...updates }));
+}
+
+// Projects
+export async function getProjects(): Promise<Project[]> {
+  const raw = await AsyncStorage.getItem(KEYS.PROJECTS);
+  return raw ? JSON.parse(raw) : [];
+}
+
+export async function saveProject(project: Project): Promise<void> {
+  const projects = await getProjects();
+  const idx = projects.findIndex(p => p.id === project.id);
+  if (idx >= 0) projects[idx] = project;
+  else projects.push(project);
+  await AsyncStorage.setItem(KEYS.PROJECTS, JSON.stringify(projects));
+}
+
+export async function deleteProject(id: string): Promise<void> {
+  const projects = await getProjects();
+  await AsyncStorage.setItem(KEYS.PROJECTS, JSON.stringify(projects.filter(p => p.id !== id)));
+}
+
+// Active Project
+export async function getActiveProjectId(): Promise<string | null> {
+  return await AsyncStorage.getItem(KEYS.ACTIVE_PROJECT);
+}
+
+export async function setActiveProjectId(projectId: string): Promise<void> {
+  await AsyncStorage.setItem(KEYS.ACTIVE_PROJECT, projectId);
+}
+
+// Saved Chats
+export async function getSavedChats(): Promise<SavedChat[]> {
+  const raw = await AsyncStorage.getItem(KEYS.SAVED_CHATS);
+  return raw ? JSON.parse(raw) : [];
+}
+
+export async function saveChatSession(chat: SavedChat): Promise<void> {
+  const chats = await getSavedChats();
+  const idx = chats.findIndex(c => c.id === chat.id);
+  if (idx >= 0) chats[idx] = chat;
+  else chats.push(chat);
+  await AsyncStorage.setItem(KEYS.SAVED_CHATS, JSON.stringify(chats));
+}
+
+export async function deleteSavedChat(id: string): Promise<void> {
+  const chats = await getSavedChats();
+  await AsyncStorage.setItem(KEYS.SAVED_CHATS, JSON.stringify(chats.filter(c => c.id !== id)));
+}
+
+// External Assets
+export async function getExternalAssets(): Promise<ExternalAsset[]> {
+  const raw = await AsyncStorage.getItem(KEYS.EXTERNAL_ASSETS);
+  return raw ? JSON.parse(raw) : [];
+}
+
+export async function saveExternalAsset(asset: ExternalAsset): Promise<void> {
+  const assets = await getExternalAssets();
+  const idx = assets.findIndex(a => a.id === asset.id);
+  if (idx >= 0) assets[idx] = asset;
+  else assets.push(asset);
+  await AsyncStorage.setItem(KEYS.EXTERNAL_ASSETS, JSON.stringify(assets));
+}
+
+export async function deleteExternalAsset(id: string): Promise<void> {
+  const assets = await getExternalAssets();
+  await AsyncStorage.setItem(KEYS.EXTERNAL_ASSETS, JSON.stringify(assets.filter(a => a.id !== id)));
 }

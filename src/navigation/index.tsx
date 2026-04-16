@@ -5,7 +5,7 @@ import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { View, Text, StyleSheet } from 'react-native';
 import { COLORS } from '../utils/theme';
 
-import ChatScreen from '../screens/ChatScreen';
+import ChatHub from '../screens/ChatHub';
 import TasksScreen from '../screens/TasksScreen';
 import AgentsScreen from '../screens/AgentsScreen';
 import SettingsScreen from '../screens/SettingsScreen';
@@ -41,7 +41,7 @@ function MainTabs() {
     >
       <Tab.Screen
         name="Chat"
-        component={ChatScreen}
+        component={ChatHub}
         options={{
           tabBarIcon: ({ focused }) => <TabIcon label="Chat" color={COLORS.red} focused={focused} />,
         }}
