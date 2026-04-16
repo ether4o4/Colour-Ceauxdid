@@ -7,7 +7,9 @@ export interface SwarmAgent {
   personality: string;
   systemPrompt: string;
   isCustom?: boolean;
-  load: number; // 0-100
+  templateType?: string;
+  steeringPrompts?: string[];
+  load: number;
   status: 'idle' | 'thinking' | 'active';
 }
 
