@@ -36,7 +36,10 @@ export default function MessageBubble({ message, isStreaming }: Props) {
         </Text>
         <Text style={styles.timestamp}>{formatTime(message.timestamp)}</Text>
       </View>
-      <View style={[styles.agentBubble, { borderLeftColor: message.senderColor }]}>
+      <View style={[styles.agentBubble, {
+        borderLeftColor: message.senderColor,
+        backgroundColor: message.senderColor + '18',
+      }]}>
         <Text style={styles.agentText}>
           {message.text}
           {isStreaming && <Text style={[styles.cursor, { color: message.senderColor }]}>▋</Text>}
@@ -53,7 +56,10 @@ function TypingBubble({ agent }: { agent: { name: string; colorHex: string } }) 
         <View style={[styles.agentDot, { backgroundColor: agent.colorHex }]} />
         <Text style={[styles.agentName, { color: agent.colorHex }]}>{agent.name.toUpperCase()}</Text>
       </View>
-      <View style={[styles.agentBubble, { borderLeftColor: agent.colorHex }]}>
+      <View style={[styles.agentBubble, {
+        borderLeftColor: agent.colorHex,
+        backgroundColor: agent.colorHex + '18',
+      }]}>
         <Text style={[styles.typingDots, { color: agent.colorHex }]}>● ● ●</Text>
       </View>
     </View>
