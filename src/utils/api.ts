@@ -2,6 +2,9 @@ import { SwarmAgent, SwarmMessage } from '../types';
 import { getAgentMemory } from '../store';
 
 const OPENROUTER_API_KEY = process.env.EXPO_PUBLIC_OPENROUTER_API_KEY ?? '';
+if (!OPENROUTER_API_KEY) {
+  console.warn('⚠️ EXPO_PUBLIC_OPENROUTER_API_KEY is not set. API calls will fail. See .env.example');
+}
 const OPENROUTER_BASE = 'https://openrouter.ai/api/v1';
 
 // Free models to use (in priority order)
