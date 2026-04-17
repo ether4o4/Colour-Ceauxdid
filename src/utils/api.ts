@@ -1,7 +1,8 @@
 import { SwarmAgent, SwarmMessage } from '../types';
 import { getAgentMemory } from '../store';
 
-const OPENROUTER_API_KEY = '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';
+// Read API key from environment variable (set in .env as EXPO_PUBLIC_OPENROUTER_API_KEY)
+const OPENROUTER_API_KEY = process.env.EXPO_PUBLIC_OPENROUTER_API_KEY || '';
 const OPENROUTER_BASE = 'https://openrouter.ai/api/v1';
 
 // Free models to use (in priority order)
@@ -20,6 +21,11 @@ export async function streamAgentResponse(
   onError: (err: string) => void
 ): Promise<void> {
   try {
+    if (!OPENROUTER_API_KEY) {
+      onError('Missing API key. Set EXPO_PUBLIC_OPENROUTER_API_KEY in your .env file.');
+      return;
+    }
+
     // Get agent memory
     const memory = await getAgentMemory(agent.id);
     const memoryContext = Object.keys(memory).length > 0
