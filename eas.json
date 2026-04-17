@@ -11,11 +11,17 @@
       "distribution": "internal",
       "android": {
         "buildType": "apk"
+      },
+      "env": {
+        "EXPO_PUBLIC_OPENROUTER_API_KEY": "${OPENROUTER_API_KEY}"
       }
     },
     "production": {
       "android": {
         "buildType": "apk"
+      },
+      "env": {
+        "EXPO_PUBLIC_OPENROUTER_API_KEY": "${OPENROUTER_API_KEY}"
       }
     }
   },

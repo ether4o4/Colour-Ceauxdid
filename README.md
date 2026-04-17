@@ -55,9 +55,17 @@ eas build --platform android --profile preview
 
 ## API Key
 
-Add your OpenRouter key in `src/utils/api.ts`:
-```ts
-const OPENROUTER_API_KEY = 'your-key-here';
+Create a `.env` file from the example:
+```bash
+cp .env.example .env
 ```
 
-Or use an `.env` file with `EXPO_PUBLIC_OPENROUTER_API_KEY`.
+Then set your OpenRouter key:
+```
+EXPO_PUBLIC_OPENROUTER_API_KEY=sk-or-v1-your-key-here
+```
+
+For EAS builds, add the secret via `eas secret:create`:
+```bash
+eas secret:create --name OPENROUTER_API_KEY --value sk-or-v1-your-key-here --scope project
+```
