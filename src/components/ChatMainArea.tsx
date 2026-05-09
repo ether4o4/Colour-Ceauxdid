@@ -30,6 +30,15 @@ export default function ChatMainArea({ project, agentId, savedChat, mode, onData
   const [saveChatName, setSaveChatName] = useState('');
   const flatListRef = useRef<FlatList>(null);
 
+  // Each project / agent / saved chat owns its own message thread.
+  // Saved chats keep messages inline on the SavedChat record (read-only here),
+  // so threadKey is undefined for that mode and writes are skipped.
+  const threadKey = mode === 'project' && project
+    ? `project_${project.id}`
+    : mode === 'agent' && agentId
+      ? `agent_${agentId}`
+      : undefined;
+
   useEffect(() => {
     loadData();
   }, [project, agentId, savedChat, mode]);
@@ -37,9 +46,11 @@ export default function ChatMainArea({ project, agentId, savedChat, mode, onData
   async function loadData() {
     if (mode === 'saved' && savedChat) {
       setMessages(savedChat.messages);
-    } else {
-      const msgs = await getMessages();
+    } else if (threadKey) {
+      const msgs = await getMessages(threadKey);
       setMessages(msgs);
+    } else {
+      setMessages([]);
     }
     const customs = await getCustomAgents();
     setCustomAgents(customs);
@@ -52,6 +63,10 @@ export default function ChatMainArea({ project, agentId, savedChat, mode, onData
   async function handleSend() {
     const text = input.trim();
     if (!text) return;
+    if (mode === 'saved') {
+      Alert.alert('Read-only', 'Saved chats are snapshots. Open a project or agent chat to send messages.');
+      return;
+    }
     setInput('');
 
     const userMsg: SwarmMessage = {
@@ -65,7 +80,7 @@ export default function ChatMainArea({ project, agentId, savedChat, mode, onData
     };
 
     setMessages(prev => [...prev, userMsg]);
-    await saveMessage(userMsg);
+    await saveMessage(userMsg, threadKey);
     scrollToBottom();
 
     // If individual agent mode, only that agent responds
@@ -111,8 +126,9 @@ export default function ChatMainArea({ project, agentId, savedChat, mode, onData
     await new Promise(r => setTimeout(r, 600));
     setTypingAgents(prev => { const s = new Set(prev); s.delete(agent.id); return s; });
 
-    const currentMsgs = await getMessages();
+    const currentMsgs = await getMessages(threadKey);
     let fullResponse = '';
+    let failed = false;
 
     await streamAgentResponse(
       agent,
@@ -127,12 +143,20 @@ export default function ChatMainArea({ project, agentId, savedChat, mode, onData
       },
       () => {}, // onDone
       (error: string) => {
-        Alert.alert('Error', error);
+        failed = true;
+        // Replace the empty bubble with an inline error so it's clear what happened.
+        const errText = `⚠ ${error}`;
+        setMessages(prev =>
+          prev.map(m => m.id === msgId ? { ...m, text: errText } : m)
+        );
+        Alert.alert('Chat error', error);
       }
     );
 
-    const finalMsg = { ...agentMsg, text: fullResponse };
-    await saveMessage(finalMsg);
+    if (!failed) {
+      const finalMsg = { ...agentMsg, text: fullResponse };
+      await saveMessage(finalMsg, threadKey);
+    }
   }
 
   async function handleSaveChat() {
