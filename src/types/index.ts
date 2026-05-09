@@ -82,3 +82,12 @@ export interface ExternalAsset {
   connected: boolean;
   connectedAt?: number;
 }
+
+export type ApiProvider = 'openrouter' | 'openai' | 'anthropic' | 'custom';
+
+export interface ApiConfig {
+  provider: ApiProvider;
+  apiKey: string;
+  baseUrl: string;
+  model: string;
+}

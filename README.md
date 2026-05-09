@@ -22,12 +22,13 @@ Up to 5 additional custom agents supported.
 
 - Multi-agent group chat with @mentions (`@Red`, `@Blue`, `@swarm`)
 - Smart message routing — agents respond based on content
-- Streaming responses per agent
+- Per-project and per-agent chat history (each thread is its own scrollback)
 - Per-agent memory (AsyncStorage)
 - Task tracker with agent assignment
 - Custom agent creator
 - Workflow saving
 - Silent mode / focused mode
+- In-app API key + provider switching (OpenRouter / OpenAI / Anthropic / custom)
 - Dark terminal aesthetic
 
 ## Stack
@@ -55,12 +56,16 @@ eas build --platform android --profile preview
 
 ## API Key
 
-Add your OpenRouter key in `.env`:
+Open **Settings → API & MODEL** in the app, pick a provider (OpenRouter, OpenAI, Anthropic, or Custom), paste your key, and tap **TEST** then **SAVE**. The key is persisted via AsyncStorage on the device — there are no hardcoded keys in source.
+
+For dev / EAS builds you can also seed defaults with `.env`:
 ```bash
 EXPO_PUBLIC_OPENROUTER_API_KEY=your-key-here
+EXPO_PUBLIC_OPENROUTER_BASE_URL=https://openrouter.ai/api/v1   # optional
 ```
 
-To use a local LLM (like Ollama or vLLM), set:
-```bash
-EXPO_PUBLIC_OPENROUTER_BASE_URL=http://your-local-ip:11434/v1
-```
+In-app settings always override env defaults.
+
+### Local LLM (Ollama / vLLM)
+
+Pick the **Custom** provider and point Base URL at your OpenAI-compatible endpoint, e.g. `http://192.168.1.50:11434/v1` for Ollama. Use any non-empty string for the API key (Ollama doesn't validate it).

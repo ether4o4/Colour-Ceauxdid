@@ -1,5 +1,5 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { SwarmAgent, SwarmMessage, Task, Workflow, AgentMemoryEntry, Project, SavedChat, ExternalAsset } from '../types';
+import { SwarmAgent, SwarmMessage, Task, Workflow, AgentMemoryEntry, Project, SavedChat, ExternalAsset, ApiConfig } from '../types';
 import { DEFAULT_AGENTS } from '../agents/config';
 
 const KEYS = {
@@ -14,24 +14,39 @@ const KEYS = {
   SAVED_CHATS: 'cc_saved_chats',
   EXTERNAL_ASSETS: 'cc_external_assets',
   ACTIVE_PROJECT: 'cc_active_project',
+  API_CONFIG: 'cc_api_config',
 };
 
-// Messages
-export async function getMessages(): Promise<SwarmMessage[]> {
-  const raw = await AsyncStorage.getItem(KEYS.MESSAGES);
+// Per-thread message storage. threadKey examples:
+//   'project_<id>'  group chat for a project
+//   'agent_<id>'    1:1 chat with a single agent
+//   undefined       legacy/global thread (kept for back-compat)
+function messagesKey(threadKey?: string): string {
+  return threadKey ? `${KEYS.MESSAGES}_${threadKey}` : KEYS.MESSAGES;
+}
+
+export async function getMessages(threadKey?: string): Promise<SwarmMessage[]> {
+  const raw = await AsyncStorage.getItem(messagesKey(threadKey));
   return raw ? JSON.parse(raw) : [];
 }
 
-export async function saveMessage(msg: SwarmMessage): Promise<void> {
-  const msgs = await getMessages();
+export async function saveMessage(msg: SwarmMessage, threadKey?: string): Promise<void> {
+  const key = messagesKey(threadKey);
+  const raw = await AsyncStorage.getItem(key);
+  const msgs: SwarmMessage[] = raw ? JSON.parse(raw) : [];
   msgs.push(msg);
-  // Keep last 500 messages
   const trimmed = msgs.slice(-500);
-  await AsyncStorage.setItem(KEYS.MESSAGES, JSON.stringify(trimmed));
+  await AsyncStorage.setItem(key, JSON.stringify(trimmed));
 }
 
-export async function clearMessages(): Promise<void> {
-  await AsyncStorage.removeItem(KEYS.MESSAGES);
+export async function clearMessages(threadKey?: string): Promise<void> {
+  await AsyncStorage.removeItem(messagesKey(threadKey));
+}
+
+export async function clearAllMessages(): Promise<void> {
+  const allKeys = await AsyncStorage.getAllKeys();
+  const msgKeys = allKeys.filter(k => k === KEYS.MESSAGES || k.startsWith(`${KEYS.MESSAGES}_`));
+  if (msgKeys.length) await AsyncStorage.multiRemove(msgKeys);
 }
 
 // Tasks
@@ -190,4 +205,29 @@ export async function saveExternalAsset(asset: ExternalAsset): Promise<void> {
 export async function deleteExternalAsset(id: string): Promise<void> {
   const assets = await getExternalAssets();
   await AsyncStorage.setItem(KEYS.EXTERNAL_ASSETS, JSON.stringify(assets.filter(a => a.id !== id)));
+}
+
+// API Config (provider, key, base URL, model)
+const DEFAULT_API_CONFIG: ApiConfig = {
+  provider: 'openrouter',
+  apiKey: '',
+  baseUrl: 'https://openrouter.ai/api/v1',
+  model: 'meta-llama/llama-3.1-8b-instruct:free',
+};
+
+export async function getApiConfig(): Promise<ApiConfig> {
+  const raw = await AsyncStorage.getItem(KEYS.API_CONFIG);
+  if (!raw) return { ...DEFAULT_API_CONFIG };
+  try {
+    return { ...DEFAULT_API_CONFIG, ...JSON.parse(raw) };
+  } catch {
+    return { ...DEFAULT_API_CONFIG };
+  }
+}
+
+export async function updateApiConfig(updates: Partial<ApiConfig>): Promise<ApiConfig> {
+  const current = await getApiConfig();
+  const next = { ...current, ...updates };
+  await AsyncStorage.setItem(KEYS.API_CONFIG, JSON.stringify(next));
+  return next;
 }
