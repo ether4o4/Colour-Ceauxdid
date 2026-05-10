@@ -82,7 +82,7 @@ export default function SettingsScreen() {
     setApiDirty(true);
   }
 
-  async function saveApiConfig(showAlert = true) {
+  async function updateApiConfig(showAlert = true) {
     const cfg: Partial<ApiConfig> = {
       provider: apiProvider,
       apiKey: apiKey.trim(),
@@ -95,7 +95,7 @@ export default function SettingsScreen() {
   }
 
   async function handleTestConnection() {
-    if (apiDirty) await saveApiConfig(false);
+    if (apiDirty) await updateApiConfig(false);
     setApiTesting(true);
     setApiStatus('unknown');
     setApiStatusDetail('Testing…');
@@ -255,7 +255,7 @@ export default function SettingsScreen() {
             </TouchableOpacity>
             <TouchableOpacity
               style={[styles.saveBtn, !apiDirty && { opacity: 0.5 }]}
-              onPress={() => saveApiConfig(true)}
+              onPress={() => updateApiConfig(true)}
               disabled={!apiDirty}
             >
               <Text style={styles.saveBtnText}>SAVE</Text>
