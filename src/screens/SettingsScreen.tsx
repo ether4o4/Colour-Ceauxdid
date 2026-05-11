@@ -9,12 +9,12 @@ const PROVIDERS = ['openrouter', 'openai', 'anthropic', 'custom'];
 
 const MODELS_BY_PROVIDER: Record<string, { label: string; value: string }[]> = {
   openrouter: [
-    { label: 'Auto (Free Router)', value: 'openrouter/free' },
+    { label: 'Llama 3.1 8B (free)', value: 'meta-llama/llama-3.1-8b-instruct:free' },
+    { label: 'Llama 3.3 70B (free)', value: 'meta-llama/llama-3.3-70b-instruct:free' },
     { label: 'DeepSeek R1 (free)', value: 'deepseek/deepseek-r1:free' },
-    { label: 'DeepSeek R1 Distill Llama 70B (free)', value: 'deepseek/deepseek-r1-distill-llama-70b:free' },
+    { label: 'DeepSeek R1 Distill 70B (free)', value: 'deepseek/deepseek-r1-distill-llama-70b:free' },
     { label: 'Qwen 2.5 72B (free)', value: 'qwen/qwen-2.5-72b-instruct:free' },
     { label: 'Gemma 3 12B (free)', value: 'google/gemma-3-12b-it:free' },
-    { label: 'Llama 3.3 70B (free)', value: 'meta-llama/llama-3.3-70b-instruct:free' },
     { label: 'Mistral Small 3.1 (free)', value: 'mistralai/mistral-small-3.1-24b-instruct:free' },
   ],
   openai: [
@@ -92,7 +92,7 @@ export default function SettingsScreen() {
   const [provider, setProvider] = useState('openrouter');
   const [apiKey, setApiKey] = useState('');
   const [baseUrl, setBaseUrl] = useState('https://openrouter.ai/api/v1');
-  const [model, setModel] = useState('openrouter/free');
+  const [model, setModel] = useState('meta-llama/llama-3.1-8b-instruct:free');
   const [testing, setTesting] = useState(false);
   const [testResult, setTestResult] = useState<{ ok: boolean; detail?: string } | null>(null);
   const [silentMode, setSilentMode] = useState(false);
@@ -124,6 +124,8 @@ export default function SettingsScreen() {
   };
 
   const handleTest = async () => {
+    // Always save current values first so testApiConnection reads the latest key
+    await saveApiConfig({ provider, apiKey, baseUrl, model });
     setTesting(true);
     setTestResult(null);
     try {
