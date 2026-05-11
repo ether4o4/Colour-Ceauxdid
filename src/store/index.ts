@@ -231,3 +231,27 @@ export async function updateApiConfig(updates: Partial<ApiConfig>): Promise<ApiC
   await AsyncStorage.setItem(KEYS.API_CONFIG, JSON.stringify(next));
   return next;
 }
+
+// Alias used by the dropdown SettingsScreen — accepts a full object and saves directly.
+export async function saveApiConfig(config: { provider: string; apiKey: string; baseUrl: string; model: string }): Promise<void> {
+  const cfg: ApiConfig = {
+    provider: (config.provider || 'openrouter') as ApiConfig['provider'],
+    apiKey: config.apiKey || '',
+    baseUrl: config.baseUrl || 'https://openrouter.ai/api/v1',
+    model: config.model || 'meta-llama/llama-3.1-8b-instruct:free',
+  };
+  await AsyncStorage.setItem(KEYS.API_CONFIG, JSON.stringify(cfg));
+}
+
+// Swarm config — silentMode + focusedAgents, stored inside cc_settings.
+export async function getSwarmConfig(): Promise<{ silentMode: boolean; focusedAgents: string[] }> {
+  const settings = await getSettings();
+  return {
+    silentMode: settings.silentMode || false,
+    focusedAgents: settings.focusedAgents || [],
+  };
+}
+
+export async function saveSwarmConfig(config: { silentMode?: boolean; focusedAgents?: string[] }): Promise<void> {
+  await updateSettings(config);
+}
