@@ -34,18 +34,34 @@ jobs:
       - name: Expo prebuild (generate android/)
         run: npx expo prebuild --platform android --no-install --non-interactive
 
-      - name: Gradle assembleDebug
+      - name: Ensure release uses debug signing
+        working-directory: android
+        run: |
+          if [ ! -f app/debug.keystore ]; then
+            keytool -genkeypair -v \
+              -keystore app/debug.keystore \
+              -storepass android -alias androiddebugkey -keypass android \
+              -keyalg RSA -keysize 2048 -validity 10000 \
+              -dname "CN=Android Debug,O=Android,C=US"
+          fi
+          echo "--- relevant snippet of app/build.gradle ---"
+          grep -nE "signingConfig|buildTypes|release" app/build.gradle | head -40
+
+      - name: Gradle assembleRelease (bundles JS into APK)
         working-directory: android
         run: |
           chmod +x ./gradlew
-          ./gradlew assembleDebug --no-daemon --stacktrace
+          ./gradlew assembleRelease --no-daemon --stacktrace
 
-      - name: Rename APK
+      - name: Locate + rename APK
         run: |
-          SRC=android/app/build/outputs/apk/debug/app-debug.apk
-          DST=colour-ceauxdid-v1-${{ github.run_number }}-debug.apk
+          SRC=$(find android/app/build/outputs/apk/release -name "*.apk" | head -1)
+          echo "Source APK: $SRC"
+          DST=colour-ceauxdid-v1-${{ github.run_number }}-release.apk
           cp "$SRC" "$DST"
           echo "APK_PATH=$DST" >> $GITHUB_ENV
+          unzip -l "$DST" | grep -E "assets/index.android.bundle" || (echo "❌ JS bundle missing from APK"; exit 1)
+          ls -lh "$DST"
 
       - name: Upload as workflow artifact
         uses: actions/upload-artifact@v4
@@ -59,7 +75,8 @@ jobs:
           tag_name: v1-apk-build-${{ github.run_number }}
           name: v1 APK Build ${{ github.run_number }}
           body: |
-            Auto-built debug APK from commit ${{ github.sha }} (v1 repo).
+            Standalone release APK from commit ${{ github.sha }} (v1 repo).
+            JS bundle is embedded — no Metro / dev server needed.
 
             Install on phone:
             1. Open this page on your phone
