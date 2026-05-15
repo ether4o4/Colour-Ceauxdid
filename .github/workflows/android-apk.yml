@@ -1,0 +1,68 @@
+name: Build Android APK
+
+on:
+  push:
+    branches:
+      - claude/ci-android-apk
+      - main
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: npm
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "17"
+
+      - uses: android-actions/setup-android@v3
+
+      - name: Install JS dependencies
+        run: npm ci
+
+      - name: Expo prebuild (generate android/)
+        run: npx expo prebuild --platform android --no-install --non-interactive
+
+      - name: Gradle assembleDebug
+        working-directory: android
+        run: |
+          chmod +x ./gradlew
+          ./gradlew assembleDebug --no-daemon --stacktrace
+
+      - name: Rename APK
+        run: |
+          SRC=android/app/build/outputs/apk/debug/app-debug.apk
+          DST=colour-ceauxdid-v1-${{ github.run_number }}-debug.apk
+          cp "$SRC" "$DST"
+          echo "APK_PATH=$DST" >> $GITHUB_ENV
+
+      - name: Upload as workflow artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: colour-ceauxdid-v1-apk
+          path: ${{ env.APK_PATH }}
+
+      - name: Publish GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: v1-apk-build-${{ github.run_number }}
+          name: v1 APK Build ${{ github.run_number }}
+          body: |
+            Auto-built debug APK from commit ${{ github.sha }} (v1 repo).
+
+            Install on phone:
+            1. Open this page on your phone
+            2. Tap the .apk asset below
+            3. Allow install-from-this-source if prompted
+          files: ${{ env.APK_PATH }}
