@@ -24,6 +24,20 @@ export default function ChatHub() {
   const [savedChats, setSavedChats] = useState<SavedChat[]>([]);
   const [customAgents, setCustomAgents] = useState<SwarmAgent[]>([]);
 
+  // When "Continue in X's DM" is triggered from a group chat, this holds the
+  // continuity context for the *next* agent view to display as a banner.
+  const [continueContext, setContinueContext] = useState<
+    { forAgentId: string; fromProjectName: string; sourceText: string } | undefined
+  >();
+
+  function handleContinueInDm(
+    targetAgentId: string,
+    ctx: { fromProjectName: string; sourceText: string },
+  ) {
+    setContinueContext({ forAgentId: targetAgentId, ...ctx });
+    handleSelectAgent(targetAgentId);
+  }
+
   // Mobile panel state — shows list picker when no item selected
   const [mobilePanelVisible, setMobilePanelVisible] = useState(false);
 
@@ -60,12 +74,17 @@ export default function ChatHub() {
   useEffect(() => { loadData(); }, [loadData]);
 
   async function handleSelectProject(projectId: string) {
-    setActiveProjectIdState(projectId);
-    await setActiveProjectId(projectId);
     setActiveSection('project');
     setActiveAgentId(undefined);
     setActiveSavedChatId(undefined);
+    setActiveProjectIdState(projectId);
+    await setActiveProjectId(projectId);
     setMobilePanelVisible(false);
+    // If this is a project we haven't loaded yet (e.g. just created from sidebar),
+    // refresh the local projects list so the main area can render the chat view.
+    if (!projects.find(p => p.id === projectId)) {
+      await loadData();
+    }
   }
 
   function handleSelectAgent(agentId: string) {
@@ -121,7 +140,7 @@ export default function ChatHub() {
       colorHex: agentColor,
       specialty: agentRole.trim(),
       personality: `Custom agent focused on ${agentRole.trim()}`,
-      systemPrompt: `You are ${agentName.trim()}, a specialized AI agent in the Colour Ceauxdid multi-agent swarm.\nYour specialty: ${agentRole.trim()}\nWork collaboratively with Red, Blue, Green, Yellow, Purple.\nStay in character and contribute your unique perspective.`,
+      systemPrompt: `You are ${agentName.trim()}, a specialized AI agent in the Colour Ceauxdid multi-agent swarm.\nYour specialty: ${agentRole.trim()}\nWork collaboratively with Red, Blue, Green, Yellow, Purple, and ToxicLaw.\nStay in character and contribute your unique perspective.`,
       isCustom: true,
       load: 0,
       status: 'idle',
@@ -211,6 +230,7 @@ export default function ChatHub() {
               onSelectSavedChat={handleSelectSavedChat}
               onNewProject={handleNewProject}
               onCreateAgent={() => setShowCreateAgentModal(true)}
+              onDataChanged={loadData}
             />
           </View>
         )}
@@ -231,9 +251,24 @@ export default function ChatHub() {
           )}
 
           {activeSection === 'project' && activeProject ? (
-            <ChatMainArea project={activeProject} mode="project" onDataChange={loadData} />
+            <ChatMainArea
+              project={activeProject}
+              mode="project"
+              onDataChange={loadData}
+              onContinueInDm={handleContinueInDm}
+            />
           ) : activeSection === 'agent' && activeAgentId ? (
-            <ChatMainArea agentId={activeAgentId} mode="agent" onDataChange={loadData} />
+            <ChatMainArea
+              agentId={activeAgentId}
+              mode="agent"
+              onDataChange={loadData}
+              continueContext={
+                continueContext && continueContext.forAgentId === activeAgentId
+                  ? { fromProjectName: continueContext.fromProjectName, sourceText: continueContext.sourceText }
+                  : undefined
+              }
+              onContinueInDm={handleContinueInDm}
+            />
           ) : activeSection === 'saved' && activeSavedChat ? (
             <ChatMainArea savedChat={activeSavedChat} mode="saved" onDataChange={loadData} />
           ) : (
@@ -314,7 +349,7 @@ export default function ChatHub() {
               <TouchableOpacity style={styles.modalButton} onPress={() => setShowNewProjectModal(false)}>
                 <Text style={styles.modalButtonText}>Cancel</Text>
               </TouchableOpacity>
-              <TouchableOpacity style={[styles.modalButton, styles.primaryButton]} onPress={handleCreateProject}>
+              <TouchableOpacity style={[styles.modalButton, styles.primaryButton]} onPress={handleCreateProject} testID="create-project-confirm">
                 <Text style={styles.primaryButtonText}>Create</Text>
               </TouchableOpacity>
             </View>

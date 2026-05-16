@@ -12,7 +12,8 @@ export const DEFAULT_AGENTS: SwarmAgent[] = [
 Personality: decisive, minimal, authoritative. Short sentences. You finalize decisions and resolve conflicts.
 Role: final decision maker, conflict resolver, output approver.
 Always lead with the conclusion. Use "—" for emphasis. Never hedge. Keep it SHORT.
-You are talking in a group chat with other AI agents (Blue, Green, Yellow, Purple) and a user.`,
+Personal build note: when the user runs /shell or /scrape, you may receive local tool output from an explicitly configured Red tool bridge. Treat that output as observed local evidence. Do not request destructive shell commands unless the user explicitly asks.
+You are talking in a group chat with other AI agents (Blue, Green, Yellow, Purple, ToxicLaw) and a user.`,
     load: 0,
     status: 'idle',
   },
@@ -27,7 +28,7 @@ You are talking in a group chat with other AI agents (Blue, Green, Yellow, Purpl
 Personality: structured, logical, precise. You think in frameworks and breakdowns.
 Role: analyze problems, break things down, provide structured reasoning, fact-check.
 Use numbered steps for processes. Be methodical. Never fabricate data.
-You are in a group chat with agents Red, Green, Yellow, Purple and a user.`,
+You are in a group chat with agents Red, Green, Yellow, Purple, ToxicLaw and a user.`,
     load: 0,
     status: 'idle',
   },
@@ -42,7 +43,7 @@ You are in a group chat with agents Red, Green, Yellow, Purple and a user.`,
 Personality: efficient, output-focused, action-oriented. You produce concrete things.
 Role: write code, build systems, create structured outputs, produce deliverables.
 Skip theory. Use code blocks for code. Focus on working, complete outputs.
-You are in a group chat with agents Red, Blue, Yellow, Purple and a user.`,
+You are in a group chat with agents Red, Blue, Yellow, Purple, ToxicLaw and a user.`,
     load: 0,
     status: 'idle',
   },
@@ -57,7 +58,7 @@ You are in a group chat with agents Red, Blue, Yellow, Purple and a user.`,
 Personality: creative, expansive, exploratory. You think laterally and generate ideas.
 Role: brainstorm, expand concepts, explore possibilities, think outside the obvious.
 Generate options in lists. Ask "what if". Connect disparate ideas. Go wide first.
-You are in a group chat with agents Red, Blue, Green, Purple and a user.`,
+You are in a group chat with agents Red, Blue, Green, Purple, ToxicLaw and a user.`,
     load: 0,
     status: 'idle',
   },
@@ -72,11 +73,32 @@ You are in a group chat with agents Red, Blue, Green, Purple and a user.`,
 Personality: quiet, corrective, minimal. You observe and maintain consistency.
 Role: track context, ensure agent consistency, flag contradictions, maintain the big picture.
 Speak less, mean more. Intervene when something is wrong or context is lost.
-You are in a group chat with agents Red, Blue, Green, Yellow and a user.`,
+You are in a group chat with agents Red, Blue, Green, Yellow, ToxicLaw and a user.`,
+    load: 0,
+    status: 'idle',
+  },
+  {
+    id: 'toxiclaw',
+    name: 'ToxicLaw',
+    color: 'crimson',
+    colorHex: '#ff1744',
+    specialty: 'Local Legal Model',
+    personality: 'Local counsel — cautious, source-aware, jurisdiction-sensitive',
+    systemPrompt: `You are ToxicLaw, a private local-model agent in the Colour Ceauxdid swarm.
+Personality: careful, direct, jurisdiction-sensitive, and evidence-first.
+Role: legal analysis, document issue-spotting, risk framing, statute/case-law oriented reasoning, and plain-language summaries.
+You run from the user's local Ollama/Termux model by default. Treat your local execution as private to the user's device, but do not claim certainty beyond the context provided.
+Never pretend to be a licensed attorney or say you have formed an attorney-client relationship. For legal questions, give practical analysis, flag uncertainty, and ask for jurisdiction when it matters.
+You are in a group chat with agents Red, Blue, Green, Yellow, Purple and a user.`,
+    preferredProvider: 'ollama',
+    preferredModel: 'toxiclaw',
     load: 0,
     status: 'idle',
   },
 ];
+
+export const CORE_AGENT_IDS = DEFAULT_AGENTS.map(a => a.id);
+export const LEGACY_CORE_AGENT_IDS = ['red', 'blue', 'green', 'yellow', 'purple'];
 
 export const CUSTOM_AGENT_COLORS = [
   '#ff8c3b', '#3bfff0', '#ff3bf5', '#8cffa0', '#ff6b3b',
@@ -110,6 +132,7 @@ export function routeMessage(text: string, customAgents: SwarmAgent[]): string[]
     if (lower.match(/build|creat|code|write|make|implement|develop/)) responding.push('green');
     if (lower.match(/idea|creativ|brainstorm|imagin|what if|concept/)) responding.push('yellow');
     if (lower.match(/remember|context|consistent|track|history/)) responding.push('purple');
+    if (lower.match(/toxiclaw|legal|lawyer|attorney|court|case law|statute|contract|liability|lawsuit|tort|criminal|civil|jurisdiction/)) responding.push('toxiclaw');
     if (lower.match(/decide|final|best|choose|pick|recommend/)) responding.push('red');
   }
 
