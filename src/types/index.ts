@@ -101,6 +101,8 @@ export interface Project {
   name: string;
   description?: string;
   agents: string[];
+  /** Agent ids that are muted in this project — they won't auto-respond. */
+  mutedAgents?: string[];
   createdAt: number;
   updatedAt: number;
   isActive: boolean;

@@ -1,38 +1,59 @@
 import React from 'react';
-import { View, Text, ScrollView, StyleSheet, Animated } from 'react-native';
+import { View, Text, ScrollView, StyleSheet, TouchableOpacity } from 'react-native';
 import { SwarmAgent } from '../types';
 import { COLORS } from '../utils/theme';
 
 interface Props {
   agents: SwarmAgent[];
   typingAgents: Set<string>;
+  /** When provided, pills become tappable to mute/unmute that agent. */
+  mutedAgents?: Set<string>;
+  onToggleMute?: (id: string) => void;
 }
 
-export default function AgentStrip({ agents, typingAgents }: Props) {
+export default function AgentStrip({ agents, typingAgents, mutedAgents, onToggleMute }: Props) {
   return (
     <View style={styles.container}>
+      {onToggleMute && (
+        <Text style={styles.hint}>tap an agent to mute / unmute</Text>
+      )}
       <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.scroll}>
         {agents.map(agent => (
-          <AgentPill key={agent.id} agent={agent} isTyping={typingAgents.has(agent.id)} />
+          <AgentPill
+            key={agent.id}
+            agent={agent}
+            isTyping={typingAgents.has(agent.id)}
+            muted={!!mutedAgents?.has(agent.id)}
+            onPress={onToggleMute ? () => onToggleMute(agent.id) : undefined}
+          />
         ))}
       </ScrollView>
     </View>
   );
 }
 
-function AgentPill({ agent, isTyping }: { agent: SwarmAgent; isTyping: boolean }) {
+function AgentPill({
+  agent, isTyping, muted, onPress,
+}: { agent: SwarmAgent; isTyping: boolean; muted: boolean; onPress?: () => void }) {
   return (
-    <View style={[styles.pill, { borderColor: agent.colorHex + '40' }]}>
-      <View style={[styles.dot, { backgroundColor: isTyping ? agent.colorHex : agent.colorHex + '50' }]}>
-        {isTyping && <View style={[styles.pulse, { backgroundColor: agent.colorHex + '30' }]} />}
+    <TouchableOpacity
+      style={[styles.pill, { borderColor: agent.colorHex + '40' }, muted && styles.pillMuted]}
+      onPress={onPress}
+      disabled={!onPress}
+      activeOpacity={0.7}
+    >
+      <View style={[styles.dot, { backgroundColor: muted ? COLORS.muted : isTyping ? agent.colorHex : agent.colorHex + '50' }]}>
+        {isTyping && !muted && <View style={[styles.pulse, { backgroundColor: agent.colorHex + '30' }]} />}
       </View>
-      <Text style={[styles.name, { color: isTyping ? agent.colorHex : COLORS.muted }]}>
+      <Text style={[styles.name, { color: muted ? COLORS.muted : isTyping ? agent.colorHex : COLORS.muted }, muted && styles.nameMuted]}>
         {agent.name.toUpperCase()}
       </Text>
-      {isTyping && (
+      {muted ? (
+        <Text style={styles.mutedTag}>muted</Text>
+      ) : isTyping ? (
         <Text style={[styles.thinking, { color: agent.colorHex }]}>...</Text>
-      )}
-    </View>
+      ) : null}
+    </TouchableOpacity>
   );
 }
 
@@ -42,6 +63,13 @@ const styles = StyleSheet.create({
     borderBottomWidth: 1,
     borderBottomColor: COLORS.border,
     paddingVertical: 8,
+  },
+  hint: {
+    color: COLORS.muted,
+    fontSize: 9,
+    letterSpacing: 0.5,
+    paddingHorizontal: 12,
+    paddingBottom: 6,
   },
   scroll: {
     paddingHorizontal: 12,
@@ -57,6 +85,10 @@ const styles = StyleSheet.create({
     paddingHorizontal: 10,
     paddingVertical: 5,
     gap: 5,
+  },
+  pillMuted: {
+    opacity: 0.5,
+    borderStyle: 'dashed',
   },
   dot: {
     width: 6,
@@ -77,8 +109,17 @@ const styles = StyleSheet.create({
     fontWeight: '700',
     letterSpacing: 1.2,
   },
+  nameMuted: {
+    textDecorationLine: 'line-through',
+  },
   thinking: {
     fontSize: 12,
     letterSpacing: 2,
+  },
+  mutedTag: {
+    fontSize: 8,
+    fontWeight: '700',
+    letterSpacing: 1,
+    color: COLORS.muted,
   },
 });

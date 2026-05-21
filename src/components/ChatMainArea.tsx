@@ -11,8 +11,10 @@ import {
   getMessages, saveMessage, updateMessage, deleteMessage,
   getCustomAgents, saveChatSession, getGroupMessagesForAgent,
   ChatScope, clearScope, scopeKey as toScopeKey, getUsageStats,
+  saveProject, getSettings, updateSettings,
 } from '../store';
 import { streamAgentResponse } from '../utils/api';
+import { speak, setVoiceEnabled, isVoiceEnabled } from '../utils/tts';
 import { parseSlashCommand, parseRedToolCommand, extractAgentMentions, SLASH_COMMANDS_HELP } from '../utils/commands';
 import { callRedToolBridge } from '../utils/redToolBridge';
 import MessageBubble from './MessageBubble';
@@ -48,6 +50,8 @@ export default function ChatMainArea({
   const [chatCost, setChatCost] = useState<{ cost: number; tokens: number }>({ cost: 0, tokens: 0 });
   const [actionMsg, setActionMsg] = useState<SwarmMessage | null>(null);
   const [showSlashHelp, setShowSlashHelp] = useState(false);
+  const [mutedAgents, setMutedAgents] = useState<Set<string>>(new Set(project?.mutedAgents || []));
+  const [voiceOn, setVoiceOn] = useState(isVoiceEnabled());
   const flatListRef = useRef<FlatList>(null);
 
   const scope: ChatScope | null =
@@ -80,6 +84,23 @@ export default function ChatMainArea({
   }, [mode, savedChat, scope?.type, scope?.id]);
 
   useEffect(() => { loadData(); }, [loadData]);
+
+  // Re-sync the muted set when switching projects.
+  useEffect(() => {
+    setMutedAgents(new Set(project?.mutedAgents || []));
+  }, [project?.id]);
+
+  // Load the saved voice on/off preference once.
+  useEffect(() => {
+    (async () => {
+      try {
+        const s = await getSettings();
+        const v = !!s.voiceEnabled;
+        setVoiceOn(v);
+        setVoiceEnabled(v);
+      } catch {}
+    })();
+  }, []);
 
   const scrollToBottom = useCallback(() => {
     setTimeout(() => flatListRef.current?.scrollToEnd({ animated: true }), 100);
@@ -171,14 +192,15 @@ export default function ChatMainArea({
       const agent = allAgents.find(a => a.id === agentId);
       if (agent) await streamAgentMessage(agent, resolvedText);
     } else if (mode === 'project' && project) {
-      const targetIds = forcedTargets && forcedTargets.length
-        ? forcedTargets
-        : routeMessage(resolvedText, customAgents);
-      const toRespond = allAgents
-        .filter(a => project.agents.includes(a.id) && targetIds.includes(a.id));
+      const isForced = !!(forcedTargets && forcedTargets.length);
+      const targetIds = isForced ? forcedTargets! : routeMessage(resolvedText, customAgents);
+      // Explicit @mentions / slash targets bypass mute; routed picks respect it.
+      const canSpeak = (id: string) =>
+        project.agents.includes(id) && (isForced || !mutedAgents.has(id));
+      const toRespond = allAgents.filter(a => targetIds.includes(a.id) && canSpeak(a.id));
       const fallback = toRespond.length > 0
         ? toRespond
-        : allAgents.filter(a => project.agents.includes(a.id)).slice(0, 2);
+        : allAgents.filter(a => project.agents.includes(a.id) && !mutedAgents.has(a.id)).slice(0, 2);
       for (let i = 0; i < fallback.length; i++) {
         await new Promise(r => setTimeout(r, i * 500));
         await streamAgentMessage(fallback[i], resolvedText);
@@ -244,6 +266,9 @@ export default function ChatMainArea({
     setMessages(prev => prev.map(m => m.id === msgId ? finalMsg : m));
     await updateMessage(finalMsg, scope);
 
+    // Speak the finished reply in the agent's voice (no-op when voice is off).
+    speak(agent.id, fullResponse);
+
     // Refresh running cost footer
     try {
       const stats = await getUsageStats({ scopeKey: toScopeKey(scope) });
@@ -257,6 +282,7 @@ export default function ChatMainArea({
           id !== agent.id                                     // don't self-loop
           && project.agents.includes(id)                      // must be in group
           && id !== 'user'                                    // ignore parsed @user-like
+          && !mutedAgents.has(id)                             // muted agents stay quiet
         );
       for (const mId of mentioned.slice(0, 2)) {
         const other = allAgents.find(a => a.id === mId);
@@ -323,6 +349,27 @@ export default function ChatMainArea({
     setMessages([]);
   }
 
+  // Mute / unmute an agent for THIS project (persists on the project).
+  async function toggleMute(targetId: string) {
+    if (!project) return;
+    const next = new Set(mutedAgents);
+    if (next.has(targetId)) next.delete(targetId); else next.add(targetId);
+    setMutedAgents(next);
+    try {
+      await saveProject({ ...project, mutedAgents: [...next], updatedAt: Date.now() });
+      onDataChange?.();
+    } catch {}
+  }
+
+  // Toggle spoken replies on/off (persists in settings).
+  async function toggleVoice() {
+    const next = !voiceOn;
+    setVoiceOn(next);
+    setVoiceEnabled(next);
+    setMenuOpen(false);
+    try { await updateSettings({ voiceEnabled: next }); } catch {}
+  }
+
   // ────────── Header info ──────────
   const headerTitle =
     mode === 'project' ? project?.name
@@ -362,6 +409,9 @@ export default function ChatMainArea({
               <TouchableOpacity style={styles.menuItem} onPress={() => { setMenuOpen(false); setShowSlashHelp(true); }}>
                 <Text style={styles.menuItemText}>Slash commands</Text>
               </TouchableOpacity>
+              <TouchableOpacity style={styles.menuItem} onPress={toggleVoice}>
+                <Text style={styles.menuItemText}>{voiceOn ? 'Voice: on' : 'Voice: off'}</Text>
+              </TouchableOpacity>
               <TouchableOpacity style={styles.menuItem} onPress={handleClearThisChat}>
                 <Text style={[styles.menuItemText, { color: COLORS.red }]}>Clear this chat</Text>
               </TouchableOpacity>
@@ -384,7 +434,7 @@ export default function ChatMainArea({
 
       {mode === 'project' && projectAgents.length > 0 && (
         <View style={styles.agentSelectorContainer}>
-          <AgentStrip agents={projectAgents} typingAgents={typingAgents} />
+          <AgentStrip agents={projectAgents} typingAgents={typingAgents} mutedAgents={mutedAgents} onToggleMute={toggleMute} />
         </View>
       )}
 
