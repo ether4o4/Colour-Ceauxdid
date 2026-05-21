@@ -12,6 +12,7 @@
  */
 
 import { SwarmAgent, SwarmMessage, MessageUsage } from '../types';
+import { GROUNDING_DIRECTIVE } from '../agents/config';
 import {
   getAgentMemory, getPinnedMemories, getApiKeys, getProviderSettings,
   markApiKeyUsed, resolveApiKeySecret, getCoreAgentPrefs,
@@ -118,7 +119,7 @@ async function buildSystemPrompt(agent: SwarmAgent): Promise<string> {
   const pinBlock = pinned.length > 0
     ? `\n\nPinned facts the user wants you to remember:\n${pinned.map(p => `  - ${p.key}: ${p.value}`).join('\n')}`
     : '';
-  return agent.systemPrompt + memBlock + pinBlock;
+  return `${agent.systemPrompt}\n\n${GROUNDING_DIRECTIVE}` + memBlock + pinBlock;
 }
 
 function buildApiMessages(history: SwarmMessage[], userMessage: string) {
