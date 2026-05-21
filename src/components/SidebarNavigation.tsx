@@ -1,15 +1,16 @@
 import React, { useState, useEffect } from 'react';
 import {
   View, Text, TouchableOpacity, FlatList, StyleSheet, ScrollView, Modal,
-  TextInput, Alert,
+  TextInput, Alert, ActivityIndicator,
 } from 'react-native';
 import { COLORS } from '../utils/theme';
-import { Project, SavedChat, SwarmAgent } from '../types';
+import { ExternalAsset, Project, SavedChat, SwarmAgent } from '../types';
 import { DEFAULT_AGENTS } from '../agents/config';
 import {
   getProjects, saveProject, deleteProject, getSavedChats, deleteSavedChat,
-  getExternalAssets, getCustomAgents,
+  getExternalAssets, getExternalAssetToken, getCustomAgents,
 } from '../store';
+import { listDriveFiles, listGitHubRepos } from '../utils/integrations';
 import { v4 as uuidv4 } from 'uuid';
 
 interface SidebarNavigationProps {
@@ -22,6 +23,7 @@ interface SidebarNavigationProps {
   onSelectSavedChat: (chatId: string) => void;
   onNewProject: () => void;
   onCreateAgent: () => void;
+  onDataChanged?: () => void;
 }
 
 export default function SidebarNavigation({
@@ -34,10 +36,16 @@ export default function SidebarNavigation({
   onSelectSavedChat,
   onNewProject,
   onCreateAgent,
+  onDataChanged,
 }: SidebarNavigationProps) {
   const [projects, setProjects] = useState<Project[]>([]);
   const [savedChats, setSavedChats] = useState<SavedChat[]>([]);
   const [customAgents, setCustomAgents] = useState<SwarmAgent[]>([]);
+  const [assets, setAssets] = useState<ExternalAsset[]>([]);
+  const [assetItems, setAssetItems] = useState<{ title: string; subtitle?: string }[]>([]);
+  const [assetLoading, setAssetLoading] = useState(false);
+  const [assetError, setAssetError] = useState('');
+  const [activeAssetId, setActiveAssetId] = useState<string | null>(null);
   const [showProjectModal, setShowProjectModal] = useState(false);
   const [showAssetModal, setShowAssetModal] = useState(false);
   const [projectName, setProjectName] = useState('');
@@ -47,14 +55,16 @@ export default function SidebarNavigation({
   }, []);
 
   async function loadData() {
-    const [p, s, c] = await Promise.all([
+    const [p, s, c, a] = await Promise.all([
       getProjects(),
       getSavedChats(),
       getCustomAgents(),
+      getExternalAssets(),
     ]);
     setProjects(p);
     setSavedChats(s);
     setCustomAgents(c);
+    setAssets(a);
   }
 
   async function handleCreateProject() {
@@ -65,7 +75,7 @@ export default function SidebarNavigation({
     const newProject: Project = {
       id: uuidv4(),
       name: projectName,
-      agents: ['red', 'blue', 'green', 'yellow', 'purple'],
+      agents: DEFAULT_AGENTS.map(a => a.id),
       createdAt: Date.now(),
       updatedAt: Date.now(),
       isActive: false,
@@ -74,15 +84,57 @@ export default function SidebarNavigation({
     setProjects([...projects, newProject]);
     setProjectName('');
     setShowProjectModal(false);
+    // Notify parent so its `projects` state refreshes BEFORE onSelectProject
+    // otherwise ChatHub won't find the new project and will stay in empty state.
+    onDataChanged?.();
     onSelectProject(newProject.id);
   }
 
-  const assetOptions = [
-    { label: 'GitHub', icon: '◐' },
-    { label: 'GitLab', icon: '◑' },
-    { label: 'Google Drive', icon: '☁' },
-    { label: 'OneDrive', icon: '☁' },
-  ];
+  async function openAssetsModal() {
+    await loadData();
+    setAssetItems([]);
+    setAssetError('');
+    setActiveAssetId(null);
+    setShowAssetModal(true);
+  }
+
+  async function loadAssetItems(asset: ExternalAsset) {
+    setAssetLoading(true);
+    setAssetError('');
+    setActiveAssetId(asset.id);
+    setAssetItems([]);
+    const token = await getExternalAssetToken(asset.secretKey);
+    if (!token) {
+      setAssetError('Stored token is missing. Reconnect this integration in Settings.');
+      setAssetLoading(false);
+      return;
+    }
+    try {
+      if (asset.type === 'github') {
+        const repos = await listGitHubRepos(token, 20);
+        setAssetItems(repos.map(r => ({
+          title: r.fullName,
+          subtitle: r.description || `${r.stars} stars`,
+        })));
+      } else if (asset.type === 'gdrive') {
+        const files = await listDriveFiles(token, 20);
+        setAssetItems(files.map(f => ({
+          title: f.name,
+          subtitle: f.mimeType,
+        })));
+      } else {
+        setAssetError('This integration type is not implemented yet.');
+      }
+    } catch (e: any) {
+      setAssetError(e?.message || 'Could not load connected assets.');
+    } finally {
+      setAssetLoading(false);
+    }
+  }
+
+  function assetIcon(type: ExternalAsset['type']): string {
+    return type === 'github' ? 'GH' : type === 'gdrive' ? 'GD' : 'AS';
+  }
 
   return (
     <View style={styles.container}>
@@ -94,7 +146,7 @@ export default function SidebarNavigation({
       <ScrollView style={styles.scrollContent} showsVerticalScrollIndicator={false}>
         {/* Quick Actions */}
         <View style={styles.section}>
-          <TouchableOpacity style={styles.actionButton} onPress={() => setShowProjectModal(true)}>
+          <TouchableOpacity style={styles.actionButton} onPress={() => setShowProjectModal(true)} testID="new-group-project-button">
             <Text style={styles.actionButtonText}>+ New Group Project</Text>
           </TouchableOpacity>
           <TouchableOpacity style={styles.actionButton} onPress={onCreateAgent}>
@@ -106,7 +158,7 @@ export default function SidebarNavigation({
         <View style={styles.section}>
           <TouchableOpacity
             style={styles.assetButton}
-            onPress={() => setShowAssetModal(true)}
+            onPress={openAssetsModal}
           >
             <Text style={styles.assetLabel}>Connect Outside Assets ▼</Text>
           </TouchableOpacity>
@@ -225,6 +277,7 @@ export default function SidebarNavigation({
               placeholderTextColor={COLORS.muted}
               value={projectName}
               onChangeText={setProjectName}
+              testID="new-project-name-input"
             />
             <View style={styles.modalButtons}>
               <TouchableOpacity
@@ -236,6 +289,7 @@ export default function SidebarNavigation({
               <TouchableOpacity
                 style={[styles.modalButton, styles.primaryButton]}
                 onPress={handleCreateProject}
+                testID="create-project-confirm"
               >
                 <Text style={styles.primaryButtonText}>Create</Text>
               </TouchableOpacity>
@@ -248,13 +302,41 @@ export default function SidebarNavigation({
       <Modal visible={showAssetModal} transparent animationType="fade">
         <View style={styles.modalOverlay}>
           <View style={styles.modalContent}>
-            <Text style={styles.modalTitle}>Connect Outside Assets</Text>
-            {assetOptions.map((asset, i) => (
-              <TouchableOpacity key={i} style={styles.assetOption}>
-                <Text style={styles.assetIcon}>{asset.icon}</Text>
-                <Text style={styles.assetOptionText}>{asset.label}</Text>
-              </TouchableOpacity>
-            ))}
+            <Text style={styles.modalTitle}>Connected Assets</Text>
+            {assets.length === 0 ? (
+              <Text style={styles.assetHint}>No integrations connected. Add GitHub or Google Drive in Settings.</Text>
+            ) : (
+              <>
+                {assets.map(asset => (
+                  <TouchableOpacity
+                    key={asset.id}
+                    style={[styles.assetOption, activeAssetId === asset.id && styles.activeItem]}
+                    onPress={() => loadAssetItems(asset)}
+                  >
+                    <Text style={styles.assetIcon}>{assetIcon(asset.type)}</Text>
+                    <View style={{ flex: 1 }}>
+                      <Text style={styles.assetOptionText}>{asset.label}</Text>
+                      <Text style={styles.assetMeta}>{asset.accountRef || asset.type.toUpperCase()}</Text>
+                    </View>
+                  </TouchableOpacity>
+                ))}
+                {assetLoading ? <ActivityIndicator color={COLORS.highlight} style={{ marginVertical: 12 }} /> : null}
+                {assetError ? <Text style={styles.assetError}>{assetError}</Text> : null}
+                {assetItems.length > 0 && (
+                  <ScrollView style={styles.assetItemList}>
+                    {assetItems.map((item, i) => (
+                      <View key={`${item.title}-${i}`} style={styles.assetItem}>
+                        <Text style={styles.assetItemTitle}>{item.title}</Text>
+                        {item.subtitle ? <Text style={styles.assetItemSub}>{item.subtitle}</Text> : null}
+                      </View>
+                    ))}
+                  </ScrollView>
+                )}
+                {activeAssetId && !assetLoading && !assetError && assetItems.length === 0 ? (
+                  <Text style={styles.assetHint}>No repositories or files returned for this token.</Text>
+                ) : null}
+              </>
+            )}
             <TouchableOpacity
               style={[styles.modalButton, styles.primaryButton]}
               onPress={() => setShowAssetModal(false)}
@@ -472,5 +554,42 @@ const styles = StyleSheet.create({
     color: COLORS.text,
     fontSize: 13,
     fontWeight: '500',
+  },
+  assetMeta: {
+    color: COLORS.muted,
+    fontSize: 11,
+    marginTop: 2,
+  },
+  assetHint: {
+    color: COLORS.muted,
+    fontSize: 12,
+    lineHeight: 18,
+    marginBottom: 14,
+  },
+  assetError: {
+    color: COLORS.red,
+    fontSize: 12,
+    marginVertical: 10,
+  },
+  assetItemList: {
+    maxHeight: 220,
+    marginVertical: 10,
+    borderTopWidth: 1,
+    borderTopColor: COLORS.border,
+  },
+  assetItem: {
+    paddingVertical: 9,
+    borderBottomWidth: 1,
+    borderBottomColor: COLORS.border,
+  },
+  assetItemTitle: {
+    color: COLORS.text,
+    fontSize: 12,
+    fontWeight: '600',
+  },
+  assetItemSub: {
+    color: COLORS.muted,
+    fontSize: 10,
+    marginTop: 2,
   },
 });

@@ -4,7 +4,7 @@ A mobile-first multi-agent AI orchestration platform with integrated real-time g
 
 ## What it is
 
-Five AI agents — each with a unique identity, behavior, memory, and specialty — collaborating in a shared group chat. Not a chatbot. A coordinated intelligence system.
+Six AI agents — each with a unique identity, behavior, memory, and specialty — collaborating in a shared group chat. Not a chatbot. A coordinated intelligence system.
 
 ## Agents
 
@@ -15,26 +15,27 @@ Five AI agents — each with a unique identity, behavior, memory, and specialty 
 | 🟢 Green | Building & Execution | Efficient, output-focused |
 | 🟡 Yellow | Creative & Expansion | Visionary, exploratory |
 | 🟣 Purple | Memory & Oversight | Quiet, corrective |
+| 🔴 ToxicLaw | Local Legal Model | Cautious, source-aware |
 
+ToxicLaw is preconfigured for a local Ollama model tag named `toxiclaw`.
 Up to 5 additional custom agents supported.
 
 ## Features
 
-- Multi-agent group chat with @mentions (`@Red`, `@Blue`, `@swarm`)
+- Multi-agent group chat with @mentions (`@Red`, `@Blue`, `@ToxicLaw`, `@swarm`)
 - Smart message routing — agents respond based on content
-- Per-project and per-agent chat history (each thread is its own scrollback)
+- Streaming responses per agent
 - Per-agent memory (AsyncStorage)
 - Task tracker with agent assignment
 - Custom agent creator
 - Workflow saving
 - Silent mode / focused mode
-- In-app API key + provider switching (OpenRouter / OpenAI / Anthropic / custom)
 - Dark terminal aesthetic
 
 ## Stack
 
 - React Native + Expo
-- OpenRouter (free models — Llama 3.1 8B)
+- OpenRouter, Ollama, and OpenAI-compatible local endpoints
 - AsyncStorage for persistence
 - React Navigation (bottom tabs + stack)
 - EAS Build for APK
@@ -54,18 +55,16 @@ eas login
 eas build --platform android --profile preview
 ```
 
-## API Key
+## Local ToxicLaw via Ollama/Termux
 
-Open **Settings → API & MODEL** in the app, pick a provider (OpenRouter, OpenAI, Anthropic, or Custom), paste your key, and tap **TEST** then **SAVE**. The key is persisted via AsyncStorage on the device — there are no hardcoded keys in source.
+Run your local model in Termux/Ollama, then add the endpoint in Settings:
 
-For dev / EAS builds you can also seed defaults with `.env`:
 ```bash
-EXPO_PUBLIC_OPENROUTER_API_KEY=your-key-here
-EXPO_PUBLIC_OPENROUTER_BASE_URL=https://openrouter.ai/api/v1   # optional
+ollama serve
+ollama run toxiclaw
 ```
 
-In-app settings always override env defaults.
-
-### Local LLM (Ollama / vLLM)
-
-Pick the **Custom** provider and point Base URL at your OpenAI-compatible endpoint, e.g. `http://192.168.1.50:11434/v1` for Ollama. Use any non-empty string for the API key (Ollama doesn't validate it).
+In the app, add an Ollama endpoint such as `http://127.0.0.1:11434` and keep
+ToxicLaw pinned to model `toxiclaw` under Settings -> Per-agent model pinning.
+For browser testing from another machine, expose Ollama on the phone LAN IP and
+allow the browser origin with Ollama's origin settings.
