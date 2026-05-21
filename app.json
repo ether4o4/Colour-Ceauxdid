@@ -57,6 +57,14 @@
             "usesCleartextTraffic": true
           }
         }
+      ],
+      [
+        "expo-speech-recognition",
+        {
+          "microphonePermission": "Allow Colour Ceauxdid to use the microphone for voice input.",
+          "speechRecognitionPermission": "Allow Colour Ceauxdid to use speech recognition.",
+          "androidSpeechServicePackages": ["com.google.android.googlequicksearchbox"]
+        }
       ]
     ]
   }

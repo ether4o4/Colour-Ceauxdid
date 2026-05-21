@@ -14,7 +14,8 @@ import {
   saveProject, getSettings, updateSettings,
 } from '../store';
 import { streamAgentResponse } from '../utils/api';
-import { speak, setVoiceEnabled, isVoiceEnabled } from '../utils/tts';
+import { createSpeechStream, setVoiceEnabled, isVoiceEnabled } from '../utils/tts';
+import { useSpeechInput } from '../utils/useSpeechInput';
 import { parseSlashCommand, parseRedToolCommand, extractAgentMentions, SLASH_COMMANDS_HELP } from '../utils/commands';
 import { callRedToolBridge } from '../utils/redToolBridge';
 import MessageBubble from './MessageBubble';
@@ -65,6 +66,12 @@ export default function ChatMainArea({
     project ? allAgents.filter(a => project.agents.includes(a.id)) : [],
   [project, allAgents]);
 
+  // Tap-to-talk: live transcript streams into the box, sends on the final result.
+  const { listening, start: startListening, stop: stopListening } = useSpeechInput({
+    onPartial: (t) => setInput(t),
+    onFinal: (t) => { setInput(''); handleSend(t); },
+  });
+
   const loadData = useCallback(async () => {
     const customs = await getCustomAgents();
     setCustomAgents(customs);
@@ -107,8 +114,8 @@ export default function ChatMainArea({
   }, []);
 
   // ────────── Send flow ──────────
-  async function handleSend() {
-    const text = input.trim();
+  async function handleSend(overrideText?: string) {
+    const text = (typeof overrideText === 'string' ? overrideText : input).trim();
     if (!text || !scope) return;
     setInput('');
     setShowSlashHelp(false);
@@ -245,12 +252,14 @@ export default function ChatMainArea({
     const context = await buildContextForAgent(agent);
     let fullResponse = '';
     let finalUsage: MessageUsage | undefined;
+    const voice = createSpeechStream(agent.id);
 
     await streamAgentResponse(
       agent, userMessage, context,
       (chunk) => {
         fullResponse += chunk;
         setMessages(prev => prev.map(m => m.id === msgId ? { ...m, text: fullResponse } : m));
+        voice.feed(fullResponse);
         scrollToBottom();
       },
       (usage) => { finalUsage = usage; },
@@ -266,8 +275,8 @@ export default function ChatMainArea({
     setMessages(prev => prev.map(m => m.id === msgId ? finalMsg : m));
     await updateMessage(finalMsg, scope);
 
-    // Speak the finished reply in the agent's voice (no-op when voice is off).
-    speak(agent.id, fullResponse);
+    // Speak any leftover tail (full sentences already spoke as they streamed).
+    voice.end(fullResponse);
 
     // Refresh running cost footer
     try {
@@ -488,8 +497,15 @@ export default function ChatMainArea({
               testID="chat-input"
             />
             <TouchableOpacity
+              style={[styles.micButton, listening && styles.micButtonActive]}
+              onPress={() => (listening ? stopListening() : startListening())}
+              testID="chat-mic-button"
+            >
+              <Text style={[styles.micText, listening && { color: '#000' }]}>{listening ? 'STOP' : 'TALK'}</Text>
+            </TouchableOpacity>
+            <TouchableOpacity
               style={[styles.sendButton, { backgroundColor: headerAccent || COLORS.highlight }]}
-              onPress={handleSend}
+              onPress={() => handleSend()}
               testID="chat-send-button"
             >
               <Text style={styles.sendButtonText}>→</Text>
@@ -625,6 +641,13 @@ const styles = StyleSheet.create({
     minWidth: 44,
   },
   sendButtonText: { color: '#000', fontSize: 18, fontWeight: 'bold' },
+  micButton: {
+    paddingHorizontal: 12, paddingVertical: 10, borderRadius: 8,
+    justifyContent: 'center', alignItems: 'center', minWidth: 52,
+    borderWidth: 1, borderColor: COLORS.border, backgroundColor: COLORS.surfaceElevated,
+  },
+  micButtonActive: { backgroundColor: COLORS.red, borderColor: COLORS.red },
+  micText: { color: COLORS.text, fontSize: 11, fontWeight: '800', letterSpacing: 1 },
   slashHelp: {
     marginTop: 8, padding: 8,
     backgroundColor: COLORS.surface, borderRadius: 6, gap: 3,

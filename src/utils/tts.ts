@@ -71,3 +71,51 @@ export function speak(agentId: string, text: string) {
 export function stopSpeaking() {
   try { Speech.stop(); } catch {}
 }
+
+/**
+ * Streaming speech: feed it the cumulative reply text as it streams, and it
+ * speaks completed sentences as they arrive (cutting the wait-for-the-whole-
+ * reply delay). expo-speech queues utterances, so sentences play in order.
+ */
+export function createSpeechStream(agentId: string) {
+  let buffer = '';
+  let consumed = 0;
+  const { pitch, rate } = profileFor(agentId);
+
+  const say = (raw: string) => {
+    const body = cleanForSpeech(raw);
+    if (body) {
+      try { Speech.speak(body, { pitch, rate }); } catch {}
+    }
+  };
+
+  return {
+    /** Call with the full text-so-far on every stream chunk. */
+    feed(cumulative: string) {
+      if (!enabled) return;
+      buffer += cumulative.slice(consumed);
+      consumed = cumulative.length;
+      // Don't speak while inside an unclosed ``` code fence — wait for it to close.
+      if (((buffer.match(/```/g) || []).length) % 2 === 1) return;
+      // Flush everything up to the last sentence boundary; keep the remainder.
+      let cut = -1;
+      for (let i = buffer.length - 1; i >= 0; i--) {
+        const c = buffer[i];
+        if (c === '.' || c === '!' || c === '?' || c === '\n') { cut = i; break; }
+      }
+      if (cut >= 0) {
+        const ready = buffer.slice(0, cut + 1);
+        buffer = buffer.slice(cut + 1);
+        say(ready);
+      }
+    },
+    /** Call once when the reply is finished to speak any leftover tail. */
+    end(cumulative: string) {
+      if (!enabled) return;
+      buffer += cumulative.slice(consumed);
+      consumed = cumulative.length;
+      if (buffer.trim()) say(buffer);
+      buffer = '';
+    },
+  };
+}
